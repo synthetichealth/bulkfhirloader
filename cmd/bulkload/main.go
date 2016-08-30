@@ -15,6 +15,12 @@ import (
 	"github.com/synthetichealth/bulkfhirloader"
 )
 
+var (
+	root      = os.Args[1]
+	mgoServer = os.Args[2]
+	mgoDB     = os.Args[3]
+)
+
 func visit(path string, f os.FileInfo, err error) error {
 	fmt.Printf("Visited: %s\n", path)
 
@@ -62,7 +68,7 @@ func visit(path string, f os.FileInfo, err error) error {
 			rsc = append(rsc, entry.Resource)
 		}
 
-		bulkfhirloader.UploadResources(rsc)
+		bulkfhirloader.UploadResources(rsc, mgoServer, mgoDB)
 
 		return nil
 	} else {
@@ -75,7 +81,6 @@ func main() {
 
 	then := time.Now()
 
-	root := os.Args[1]
 	err := filepath.Walk(root, visit)
 	fmt.Printf("filepath.Walk() returned %v\n", err)
 

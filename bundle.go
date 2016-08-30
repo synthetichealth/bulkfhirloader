@@ -15,14 +15,14 @@ import (
  * NOTE: This is a destructive operation.  Resources will be updated with new server-assigned ID and
  * its references will point to server locations of other resources.
  */
-func UploadResources(resources []interface{}) {
+func UploadResources(resources []interface{}, mServer string, mDB string) {
 
 	var (
 		mgoSession *mgo.Session
-		// err        error
+		basestat   RawStats
 	)
 	var err error
-	mgoSession, err = mgo.Dial("localhost")
+	mgoSession, err = mgo.Dial(mServer)
 	if err != nil {
 		panic(err)
 	}
@@ -37,17 +37,24 @@ func UploadResources(resources []interface{}) {
 
 		forMango[collection] = append(forMango[collection], t)
 
-		// if resourceType == "Patient" {
-		// 	p, ok := t.(*models.Patient)
-		// 	if ok {
-		// 		fmt.Println(p.Gender)
-		// 		fmt.Println(p.Address[0].City)
-		// 	}
-		// }
+		if resourceType == "Patient" {
+			p, ok := t.(*models.Patient)
+			if ok {
+				basestat.Gender = p.Gender
+				basestat.City = p.Address[0].City
+			}
+		}
+
+		if resourceType == "Condition" {
+			p, ok := t.(*models.Condition)
+			if ok {
+				basestat.ConditionSNOMED = append(basestat.ConditionSNOMED, p.Code.Coding[0].Code)
+			}
+		}
 	}
 
 	for key, value := range forMango {
-		c := mgoSession.DB("fhir2").C(key)
+		c := mgoSession.DB(mDB).C(key)
 		x := c.Bulk()
 		x.Unordered()
 		x.Insert(value...)
@@ -56,6 +63,9 @@ func UploadResources(resources []interface{}) {
 			panic(err)
 		}
 	}
+
+	c := mgoSession.DB(mDB).C("rawstat")
+	c.Insert(basestat)
 
 }
 

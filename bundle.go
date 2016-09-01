@@ -31,6 +31,7 @@ func UploadResources(resources []interface{}, mgoSession *mgo.Session, mDB strin
 		if resourceType == "Patient" {
 			p, ok := t.(*models.Patient)
 			if ok {
+				basestat.Id = p.Id
 				basestat.Gender = p.Gender
 				basestat.City = p.Address[0].City
 				basestat.ZipCode = p.Address[0].PostalCode

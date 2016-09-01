@@ -28,7 +28,7 @@ var (
 	mgoDB           = os.Args[3]
 	pgConnectString = os.Args[4]
 	pgFipsMap       map[string]bulkfhirloader.PgFips
-	pgDiseases      map[bulkfhirloader.DiseaseKey]int32
+	pgDiseases      map[bulkfhirloader.DiseaseKey]bulkfhirloader.DiseaseGroup
 )
 
 type WeirdAl struct {
@@ -113,31 +113,29 @@ func worker(bundles <-chan string, wg *sync.WaitGroup) {
 	} // close the for
 }
 
-func pgMaps() {
+func pgMaps(db *sql.DB) {
 	var (
-		csName      string
-		ctFips      string
-		csFips      string
-		fipsRecord  bulkfhirloader.PgFips
-		dFp         int32
-		dCodeSystem string
-		dCode       string
+		csName         string
+		ctFips         string
+		csFips         string
+		fipsRecord     bulkfhirloader.PgFips
+		condID         int
+		condCodeSystem string
+		condCode       string
+		condDiseaseID  int
 	)
 	pgFipsMap = make(map[string]bulkfhirloader.PgFips)
 
-	// configure the GORM Postgres driver and database connection
-	db, err := sql.Open("postgres", pgConnectString)
-
+	rows, err := db.Query(`
+SELECT case when right(cd.cs_name, 5) = ' Town' then substring(cd.cs_name, 1, length(cd.cs_name)-5)
+	else cs_name
+	end
+	, cd.ct_fips
+	, cd.cs_fips 
+FROM synth_ma.synth_cousub_dim cd`)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer db.Close()
-	// ping the db to ensure we connected successfully
-	if err := db.Ping(); err != nil {
-		log.Fatal(err)
-	}
-
-	rows, err := db.Query(`SELECT cousub_stats.cs_name, cousub_stats.ct_fips, cousub_stats.cs_fips FROM synth_ma.cousub_stats`)
 	defer rows.Close()
 	for rows.Next() {
 		err := rows.Scan(&csName, &ctFips, &csFips)
@@ -149,23 +147,45 @@ func pgMaps() {
 		pgFipsMap[csName] = fipsRecord
 	}
 
-	pgDiseases = make(map[bulkfhirloader.DiseaseKey]int32)
+	pgDiseases = make(map[bulkfhirloader.DiseaseKey]bulkfhirloader.DiseaseGroup)
+	var dg bulkfhirloader.DiseaseGroup
 
-	rows2, err := db.Query(`SELECT synth_disease2.diseasefp, synth_disease2.code_system, synth_disease2.code FROM synth_ma.synth_disease2`)
+	// Changing the value in the coalesce will impact the remove dups logic
+	rows2, err := db.Query(`SELECT cd.condition_id, coalesce(cd.disease_id, -999), cd.code_system, cd.code FROM synth_ma.synth_condition_dim cd`)
+	if err != nil {
+		fmt.Println(err)
+	}
 	defer rows2.Close()
 	for rows2.Next() {
-		err := rows2.Scan(&dFp, &dCodeSystem, &dCode)
+		err := rows2.Scan(&condID, &condDiseaseID, &condCodeSystem, &condCode)
 		if err != nil {
+			fmt.Println(err)
 			log.Fatal(err)
 		}
-		pgDiseases[bulkfhirloader.DiseaseKey{dCodeSystem, dCode}] = dFp
+		dg.ConditionID = condID
+		dg.DiseaseID = condDiseaseID
+		pgDiseases[bulkfhirloader.DiseaseKey{condCodeSystem, condCode}] = dg
 	}
 
 	return
 }
 
 func main() {
-	pgMaps()
+	// configure the GORM Postgres driver and database connection
+	pgDB, err := sql.Open("postgres", pgConnectString)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+	// defer pgDB.Close()
+	// ping the db to ensure we connected successfully
+	if err := pgDB.Ping(); err != nil {
+		log.Fatal(err)
+	}
+
+	pgMaps(pgDB)
+	//Won't need this connection again until done processing the bundles
+	pgDB.Close()
 	then := time.Now()
 
 	carrotTop := new(WeirdAl)
@@ -179,7 +199,7 @@ func main() {
 		go worker(carrotTop.bundlechannel, &wg)
 	}
 
-	err := filepath.Walk(root, carrotTop.visit)
+	err = filepath.Walk(root, carrotTop.visit)
 	fmt.Printf("filepath.Walk() returned %v\n", err)
 
 	// Close the channel
@@ -197,7 +217,18 @@ func main() {
 		panic(err)
 	}
 	defer mgoSession.Close()
-	bulkfhirloader.CalculateStatistics(mgoSession, mgoDB, pgConnectString)
-	bulkfhirloader.CalculateFacts(mgoSession, mgoDB, pgConnectString)
+
+	pgDB, err = sql.Open("postgres", pgConnectString)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer pgDB.Close()
+
+	bulkfhirloader.ClearFactTables(pgDB)
+	bulkfhirloader.CalculatePopulation(mgoSession, mgoDB, pgDB)
+	bulkfhirloader.CalculateDiseaseFact(mgoSession, mgoDB, pgDB)
+	bulkfhirloader.CalculateConditionFact(mgoSession, mgoDB, pgDB)
 
 }

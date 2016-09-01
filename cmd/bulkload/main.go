@@ -7,8 +7,10 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"sync"
 	"time"
 
+	mgo "gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 
 	"github.com/intervention-engine/fhir/models"
@@ -21,55 +23,17 @@ var (
 	mgoDB     = os.Args[3]
 )
 
-func visit(path string, f os.FileInfo, err error) error {
+type WeirdAl struct {
+	bundlechannel chan (string)
+}
+
+func (wa *WeirdAl) visit(path string, f os.FileInfo, err error) error {
 	fmt.Printf("Visited: %s\n", path)
 
 	if !f.IsDir() {
-		jsonFile, err := os.Open(path)
-		if err != nil {
-			fmt.Println("Error opening JSON file:", err)
-			return err
-		}
-		defer jsonFile.Close()
-		jsonData, err := ioutil.ReadAll(jsonFile)
-		if err != nil {
-			fmt.Println("Error reading JSON data:", err)
-			return err
-		}
 
-		var bundle models.Bundle
-		json.Unmarshal(jsonData, &bundle)
-
-		refMap := make(map[string]models.Reference)
-
-		entries := make([]*models.BundleEntryComponent, len(bundle.Entry))
-		for i := range bundle.Entry {
-			entries[i] = &bundle.Entry[i]
-		}
-
-		for _, entry := range entries {
-			// Create a new ID and add it to the reference map
-			id := bson.NewObjectId().Hex()
-			refMap[entry.FullUrl] = models.Reference{
-				Reference:    reflect.TypeOf(entry.Resource).Elem().Name() + "/" + id,
-				Type:         reflect.TypeOf(entry.Resource).Elem().Name(),
-				ReferencedID: id,
-				External:     new(bool),
-			}
-			// Update the UUID to the new bson id that was just generated
-			bulkfhirloader.SetId(entry.Resource, id)
-		}
-
-		// Update all the references to the entries (to reflect newly assigned IDs)
-		bulkfhirloader.UpdateAllReferences(entries, refMap)
-
-		var rsc []interface{}
-		for _, entry := range entries {
-			rsc = append(rsc, entry.Resource)
-		}
-
-		bulkfhirloader.UploadResources(rsc, mgoServer, mgoDB)
-
+		// push path onto channel
+		wa.bundlechannel <- path
 		return nil
 	} else {
 		fmt.Println("just processing the directory path....")
@@ -77,12 +41,93 @@ func visit(path string, f os.FileInfo, err error) error {
 	}
 }
 
+func worker(bundles <-chan string, wg *sync.WaitGroup) {
+	defer wg.Done()
+	// Create database session
+	mgoSession, err := mgo.Dial(mgoServer)
+	if err != nil {
+		panic(err)
+	}
+	defer mgoSession.Close()
+
+	for {
+		select {
+		case path, ok := <-bundles:
+			if !ok {
+				return
+			}
+			jsonFile, err := os.Open(path)
+			if err != nil {
+				fmt.Println("Error opening JSON file:", err)
+				continue
+			}
+			// defer jsonFile.Close()
+			jsonData, err := ioutil.ReadAll(jsonFile)
+			jsonFile.Close()
+			if err != nil {
+				fmt.Println("Error reading JSON data:", err)
+				continue
+			}
+
+			var bundle models.Bundle
+			json.Unmarshal(jsonData, &bundle)
+
+			refMap := make(map[string]models.Reference)
+
+			entries := make([]*models.BundleEntryComponent, len(bundle.Entry))
+			for i := range bundle.Entry {
+				entries[i] = &bundle.Entry[i]
+			}
+
+			for _, entry := range entries {
+				// Create a new ID and add it to the reference map
+				id := bson.NewObjectId().Hex()
+				refMap[entry.FullUrl] = models.Reference{
+					Reference:    reflect.TypeOf(entry.Resource).Elem().Name() + "/" + id,
+					Type:         reflect.TypeOf(entry.Resource).Elem().Name(),
+					ReferencedID: id,
+					External:     new(bool),
+				}
+				// Update the UUID to the new bson id that was just generated
+				bulkfhirloader.SetId(entry.Resource, id)
+			}
+
+			// Update all the references to the entries (to reflect newly assigned IDs)
+			bulkfhirloader.UpdateAllReferences(entries, refMap)
+
+			var rsc []interface{}
+			for _, entry := range entries {
+				rsc = append(rsc, entry.Resource)
+			}
+
+			bulkfhirloader.UploadResources(rsc, mgoSession, mgoDB)
+		} // close the select
+	} // close the for
+}
+
 func main() {
 
 	then := time.Now()
 
-	err := filepath.Walk(root, visit)
+	carrotTop := new(WeirdAl)
+	carrotTop.bundlechannel = make(chan string, 256)
+
+	var wg sync.WaitGroup
+
+	// spawn workers
+	for i := 0; i < 8; i++ {
+		wg.Add(1)
+		go worker(carrotTop.bundlechannel, &wg)
+	}
+
+	err := filepath.Walk(root, carrotTop.visit)
 	fmt.Printf("filepath.Walk() returned %v\n", err)
+
+	// Close the channel
+	close(carrotTop.bundlechannel)
+
+	// wait for all workers to shut down properly
+	wg.Wait()
 
 	now := time.Now()
 	diff := now.Sub(then)

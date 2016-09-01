@@ -15,18 +15,9 @@ import (
  * NOTE: This is a destructive operation.  Resources will be updated with new server-assigned ID and
  * its references will point to server locations of other resources.
  */
-func UploadResources(resources []interface{}, mServer string, mDB string) {
+func UploadResources(resources []interface{}, mgoSession *mgo.Session, mDB string) {
 
-	var (
-		mgoSession *mgo.Session
-		basestat   RawStats
-	)
-	var err error
-	mgoSession, err = mgo.Dial(mServer)
-	if err != nil {
-		panic(err)
-	}
-	defer mgoSession.Close()
+	var basestat RawStats
 
 	forMango := make(map[string][]interface{})
 
@@ -42,6 +33,7 @@ func UploadResources(resources []interface{}, mServer string, mDB string) {
 			if ok {
 				basestat.Gender = p.Gender
 				basestat.City = p.Address[0].City
+				basestat.ZipCode = p.Address[0].PostalCode
 			}
 		}
 

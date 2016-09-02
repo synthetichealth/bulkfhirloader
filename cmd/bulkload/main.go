@@ -141,8 +141,8 @@ func pgMaps() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		blah.CountyID = ctFips
-		blah.SubCountyID = csFips
+		blah.CountyIDFips = ctFips
+		blah.SubCountyIDFips = csFips
 		pgFipsMap[csName] = blah
 	}
 

@@ -34,10 +34,14 @@ func UploadResources(resources []interface{}, mgoSession *mgo.Session, mDB strin
 			if ok {
 				basestat.ID = p.Id
 				basestat.Gender = p.Gender
-				basestat.City = p.Address[0].City
-				basestat.ZipCode = p.Address[0].PostalCode
+				// basestat.City = p.Address[0].City
+				// basestat.ZipCode = p.Address[0].PostalCode
 				basestat.DeceasedBoolean = p.DeceasedDateTime != nil || (p.DeceasedBoolean != nil && *p.DeceasedBoolean)
-				basestat.Fips = pgMapFips[p.Address[0].City]
+				// basestat.Fips = pgMapFips[p.Address[0].City]
+				basestat.Location.City = p.Address[0].City
+				basestat.Location.ZipCode = p.Address[0].PostalCode
+				basestat.Location.CountyIDFips = pgMapFips[p.Address[0].City].CountyIDFips
+				basestat.Location.SubCountyIDFips = pgMapFips[p.Address[0].City].SubCountyIDFips
 			}
 		}
 

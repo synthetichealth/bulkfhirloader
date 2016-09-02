@@ -3,7 +3,6 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -24,19 +23,12 @@ import (
 )
 
 var (
-<<<<<<< HEAD
 	root            = os.Args[1]
 	mgoServer       = os.Args[2]
 	mgoDB           = os.Args[3]
 	pgConnectString = os.Args[4]
 	pgFipsMap       map[string]bulkfhirloader.PgFips
 	pgDiseases      map[bulkfhirloader.DiseaseKey]bulkfhirloader.DiseaseGroup
-=======
-	root      = os.Args[1]
-	mgoServer = os.Args[2]
-	mgoDB     = os.Args[3]
-	pgFipsMap map[string]bulkfhirloader.PgFips
->>>>>>> 6ef3b8b... Add County/SubCounty info to rawstats
 )
 
 type WeirdAl struct {

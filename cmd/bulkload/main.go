@@ -1,9 +1,12 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -15,12 +18,15 @@ import (
 
 	"github.com/intervention-engine/fhir/models"
 	"github.com/synthetichealth/bulkfhirloader"
+
+	_ "github.com/lib/pq"
 )
 
 var (
 	root      = os.Args[1]
 	mgoServer = os.Args[2]
 	mgoDB     = os.Args[3]
+	pgFipsMap map[string]bulkfhirloader.PgFips
 )
 
 type WeirdAl struct {
@@ -100,12 +106,51 @@ func worker(bundles <-chan string, wg *sync.WaitGroup) {
 				rsc = append(rsc, entry.Resource)
 			}
 
-			bulkfhirloader.UploadResources(rsc, mgoSession, mgoDB)
+			bulkfhirloader.UploadResources(rsc, mgoSession, mgoDB, pgFipsMap)
 		} // close the select
 	} // close the for
 }
 
+func pgMaps() {
+	var (
+		csName string
+		ctFips string
+		csFips string
+		blah   bulkfhirloader.PgFips
+	)
+	pgFipsMap = make(map[string]bulkfhirloader.PgFips)
+
+	pgURL := flag.String("pgurl", "postgres://fhir:fhir@syntheticmass-dev.mitre.org", "The PG connection URL (e.g., postgres://pqgotest:password@localhost/pqgotest?sslmode=verify-full)")
+
+	// configure the GORM Postgres driver and database connection
+	db, err := sql.Open("postgres", *pgURL)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+	// ping the db to ensure we connected successfully
+	if err := db.Ping(); err != nil {
+		log.Fatal(err)
+	}
+
+	rows, err := db.Query(`SELECT cousub_stats.cs_name, cousub_stats.ct_fips, cousub_stats.cs_fips FROM synth_ma.cousub_stats`)
+	defer rows.Close()
+	for rows.Next() {
+		err := rows.Scan(&csName, &ctFips, &csFips)
+		if err != nil {
+			log.Fatal(err)
+		}
+		blah.CountyID = ctFips
+		blah.SubCountyID = csFips
+		pgFipsMap[csName] = blah
+	}
+
+	return
+}
+
 func main() {
+	pgMaps()
 
 	then := time.Now()
 

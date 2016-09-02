@@ -15,7 +15,7 @@ import (
  * NOTE: This is a destructive operation.  Resources will be updated with new server-assigned ID and
  * its references will point to server locations of other resources.
  */
-func UploadResources(resources []interface{}, mgoSession *mgo.Session, mDB string) {
+func UploadResources(resources []interface{}, mgoSession *mgo.Session, mDB string, pgMapFips map[string]PgFips) {
 
 	var basestat RawStats
 	var condcode ConditionCode
@@ -37,6 +37,7 @@ func UploadResources(resources []interface{}, mgoSession *mgo.Session, mDB strin
 				basestat.City = p.Address[0].City
 				basestat.ZipCode = p.Address[0].PostalCode
 				basestat.DeceasedBoolean = p.DeceasedDateTime != nil || (p.DeceasedBoolean != nil && *p.DeceasedBoolean)
+				basestat.Fips = pgMapFips[p.Address[0].City]
 			}
 		}
 

@@ -18,6 +18,7 @@ import (
 func UploadResources(resources []interface{}, mgoSession *mgo.Session, mDB string) {
 
 	var basestat RawStats
+	var condcode ConditionCode
 
 	forMango := make(map[string][]interface{})
 
@@ -31,17 +32,20 @@ func UploadResources(resources []interface{}, mgoSession *mgo.Session, mDB strin
 		if resourceType == "Patient" {
 			p, ok := t.(*models.Patient)
 			if ok {
-				basestat.Id = p.Id
+				basestat.ID = p.Id
 				basestat.Gender = p.Gender
 				basestat.City = p.Address[0].City
 				basestat.ZipCode = p.Address[0].PostalCode
+				basestat.DeceasedBoolean = p.DeceasedDateTime != nil || (p.DeceasedBoolean != nil && *p.DeceasedBoolean)
 			}
 		}
 
 		if resourceType == "Condition" {
 			p, ok := t.(*models.Condition)
 			if ok {
-				basestat.ConditionSNOMED = append(basestat.ConditionSNOMED, p.Code.Coding[0].Code)
+				condcode.Code = p.Code.Coding[0].Code
+				condcode.System = p.Code.Coding[0].System
+				basestat.Conditions = append(basestat.Conditions, condcode)
 			}
 		}
 	}

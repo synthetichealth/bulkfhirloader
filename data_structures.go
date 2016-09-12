@@ -42,3 +42,8 @@ type PgFips struct {
 	City            string `bson:"city,omitempty" json:"city,omitempty"`
 	ZipCode         string `bson:"zipcode,omitempty" json:"zipcode,omitempty"`
 }
+
+type DiseaseKey struct {
+	CodeSystem  string `bson:"codesystem,omitempty"`
+	CodeSysCode string `bson:"codesyscode,omitempty"`
+}

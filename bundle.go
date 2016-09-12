@@ -15,7 +15,7 @@ import (
  * NOTE: This is a destructive operation.  Resources will be updated with new server-assigned ID and
  * its references will point to server locations of other resources.
  */
-func UploadResources(resources []interface{}, mgoSession *mgo.Session, mDB string, pgMapFips map[string]PgFips) {
+func UploadResources(resources []interface{}, mgoSession *mgo.Session, mDB string, pgMapFips map[string]PgFips, pgDiseases map[DiseaseKey]int32) {
 
 	var basestat RawStats
 	var condcode ConditionCode
@@ -34,10 +34,7 @@ func UploadResources(resources []interface{}, mgoSession *mgo.Session, mDB strin
 			if ok {
 				basestat.ID = p.Id
 				basestat.Gender = p.Gender
-				// basestat.City = p.Address[0].City
-				// basestat.ZipCode = p.Address[0].PostalCode
 				basestat.DeceasedBoolean = p.DeceasedDateTime != nil || (p.DeceasedBoolean != nil && *p.DeceasedBoolean)
-				// basestat.Fips = pgMapFips[p.Address[0].City]
 				basestat.Location.City = p.Address[0].City
 				basestat.Location.ZipCode = p.Address[0].PostalCode
 				basestat.Location.CountyIDFips = pgMapFips[p.Address[0].City].CountyIDFips
@@ -50,6 +47,7 @@ func UploadResources(resources []interface{}, mgoSession *mgo.Session, mDB strin
 			if ok {
 				condcode.Code = p.Code.Coding[0].Code
 				condcode.System = p.Code.Coding[0].System
+				condcode.DiseaseFP = pgDiseases[DiseaseKey{condcode.System, condcode.Code}]
 				basestat.Conditions = append(basestat.Conditions, condcode)
 			}
 		}

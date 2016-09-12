@@ -23,10 +23,12 @@ import (
 )
 
 var (
-	root      = os.Args[1]
-	mgoServer = os.Args[2]
-	mgoDB     = os.Args[3]
-	pgFipsMap map[string]bulkfhirloader.PgFips
+	root            = os.Args[1]
+	mgoServer       = os.Args[2]
+	mgoDB           = os.Args[3]
+	pgConnectString = os.Args[4]
+	pgFipsMap       map[string]bulkfhirloader.PgFips
+	pgDiseases      map[bulkfhirloader.DiseaseKey]int32
 )
 
 type WeirdAl struct {
@@ -106,21 +108,24 @@ func worker(bundles <-chan string, wg *sync.WaitGroup) {
 				rsc = append(rsc, entry.Resource)
 			}
 
-			bulkfhirloader.UploadResources(rsc, mgoSession, mgoDB, pgFipsMap)
+			bulkfhirloader.UploadResources(rsc, mgoSession, mgoDB, pgFipsMap, pgDiseases)
 		} // close the select
 	} // close the for
 }
 
 func pgMaps() {
 	var (
-		csName string
-		ctFips string
-		csFips string
-		blah   bulkfhirloader.PgFips
+		csName      string
+		ctFips      string
+		csFips      string
+		fipsRecord  bulkfhirloader.PgFips
+		dFp         int32
+		dCodeSystem string
+		dCode       string
 	)
 	pgFipsMap = make(map[string]bulkfhirloader.PgFips)
 
-	pgURL := flag.String("pgurl", "postgres://fhir:fhir@syntheticmass-dev.mitre.org", "The PG connection URL (e.g., postgres://pqgotest:password@localhost/pqgotest?sslmode=verify-full)")
+	pgURL := flag.String("pgurl", pgConnectString, "The PG connection URL (e.g., postgres://pqgotest:password@localhost/pqgotest?sslmode=verify-full)")
 
 	// configure the GORM Postgres driver and database connection
 	db, err := sql.Open("postgres", *pgURL)
@@ -141,9 +146,21 @@ func pgMaps() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		blah.CountyIDFips = ctFips
-		blah.SubCountyIDFips = csFips
-		pgFipsMap[csName] = blah
+		fipsRecord.CountyIDFips = ctFips
+		fipsRecord.SubCountyIDFips = csFips
+		pgFipsMap[csName] = fipsRecord
+	}
+
+	pgDiseases = make(map[bulkfhirloader.DiseaseKey]int32)
+
+	rows2, err := db.Query(`SELECT synth_disease2.diseasefp, synth_disease2.code_system, synth_disease2.code FROM synth_ma.synth_disease2`)
+	defer rows2.Close()
+	for rows2.Next() {
+		err := rows2.Scan(&dFp, &dCodeSystem, &dCode)
+		if err != nil {
+			log.Fatal(err)
+		}
+		pgDiseases[bulkfhirloader.DiseaseKey{dCodeSystem, dCode}] = dFp
 	}
 
 	return
@@ -151,7 +168,6 @@ func pgMaps() {
 
 func main() {
 	pgMaps()
-
 	then := time.Now()
 
 	carrotTop := new(WeirdAl)
@@ -177,5 +193,12 @@ func main() {
 	now := time.Now()
 	diff := now.Sub(then)
 	fmt.Println("the final tally is: ", diff.Seconds(), "seconds.")
+
+	mgoSession, err := mgo.Dial(mgoServer)
+	if err != nil {
+		panic(err)
+	}
+	defer mgoSession.Close()
+	bulkfhirloader.CalcSubCountyStats(mgoSession, mgoDB, pgConnectString)
 
 }

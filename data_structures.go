@@ -5,12 +5,13 @@ type RawStats struct {
 	Location        PgFips          `bson:"location,omitempty" json:"location,omitempty"`
 	Gender          string          `bson:"gender,omitempty" json:"gender"`
 	DeceasedBoolean bool            `bson:"deceasedBoolean,omitempty" json:"deceasedBoolean,omitempty"`
-	Conditions      []ConditionCode `bson:"conditions,omitempty" json:"conditions,omitempty"`
+	Conditions      []ConditionCode `bson:"conditions" json:"conditions"`
 }
 
 type ConditionCode struct {
-	System string `bson:"system,omitempty" json:"system,omitempty"`
-	Code   string `bson:"code,omitempty" json:"code,omitempty"`
+	System    string `bson:"system,omitempty" json:"system,omitempty"`
+	Code      string `bson:"code,omitempty" json:"code,omitempty"`
+	DiseaseFP int32  `bson:"diseasefp" json:"diseasefp"`
 }
 
 type PgFips struct {
@@ -18,4 +19,9 @@ type PgFips struct {
 	SubCountyIDFips string `bson:"subcountyid_fips,omitempty" json:"subcountyid_fips, omitempty"`
 	City            string `bson:"city,omitempty" json:"city,omitempty"`
 	ZipCode         string `bson:"zipcode,omitempty" json:"zipcode,omitempty"`
+}
+
+type DiseaseKey struct {
+	CodeSystem  string `bson:"codesystem,omitempty"`
+	CodeSysCode string `bson:"codesyscode,omitempty"`
 }

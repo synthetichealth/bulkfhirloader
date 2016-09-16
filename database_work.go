@@ -2,30 +2,17 @@ package bulkfhirloader
 
 import (
 	"database/sql"
-<<<<<<< HEAD
-=======
-	"flag"
-	"fmt"
->>>>>>> 42663f4... Add disease key and use for aggregation
 	"log"
 
 	mgo "gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 
 	"github.com/lib/pq"
-<<<<<<< HEAD
 )
 
 // CalculateFacts Calculate the populations including a breakdown by disease.
 // Only counting living patients
 func CalculateFacts(mgoSession *mgo.Session, mDB string, pgConn string) {
-=======
-	_ "github.com/lib/pq"
-)
-
-func CalcSubCountyStats(mgoSession *mgo.Session, mDB string, pgConn string) {
-	fmt.Println("Hello from CalcSubCountyStats")
->>>>>>> 42663f4... Add disease key and use for aggregation
 	c := mgoSession.DB(mDB).C("rawstat")
 	pipeline := []bson.M{
 		bson.M{"$match": bson.M{"$and": []interface{}{
@@ -83,15 +70,8 @@ func CalcSubCountyStats(mgoSession *mgo.Session, mDB string, pgConn string) {
 
 	iter := pipe.Iter()
 
-<<<<<<< HEAD
 	// configure the GORM Postgres driver and database connection
 	db, err := sql.Open("postgres", pgConn)
-=======
-	pgURL2 := flag.String("pgurl2", "postgres://fhir_test:fhir_test@localhost/fhir_test?sslmode=disable", "The PG connection URL (e.g., postgres://pqgotest:password@localhost/pqgotest?sslmode=verify-full)")
-
-	// configure the GORM Postgres driver and database connection
-	db, err := sql.Open("postgres", *pgURL2)
->>>>>>> 42663f4... Add disease key and use for aggregation
 
 	if err != nil {
 		log.Fatal(err)
@@ -120,7 +100,6 @@ func CalcSubCountyStats(mgoSession *mgo.Session, mDB string, pgConn string) {
 			log.Fatal(err)
 		}
 	}
-<<<<<<< HEAD
 
 	err = stmt.Close()
 	if err != nil {
@@ -240,12 +219,6 @@ func CalculateStatistics(mgoSession *mgo.Session, mDB string, pgConn string) {
 			log.Fatal(err)
 		}
 	}
-=======
-	_, err = stmt.Exec()
-	if err != nil {
-		log.Fatal(err)
-	}
->>>>>>> 42663f4... Add disease key and use for aggregation
 
 	err = stmt.Close()
 	if err != nil {
@@ -257,7 +230,6 @@ func CalculateStatistics(mgoSession *mgo.Session, mDB string, pgConn string) {
 		log.Fatal(err)
 	}
 
-<<<<<<< HEAD
 	db.Query(`update
 		synth_ma.synth_cousub_stats f_alias
 	set
@@ -289,6 +261,4 @@ func CalculateStatistics(mgoSession *mgo.Session, mDB string, pgConn string) {
 		log.Fatal(err)
 	}
 
-=======
->>>>>>> 42663f4... Add disease key and use for aggregation
 }

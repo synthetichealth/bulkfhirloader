@@ -4,7 +4,7 @@ type RawStats struct {
 	ID              string          `bson:"_id" json:"_id"`
 	Location        PgFips          `bson:"location,omitempty" json:"location,omitempty"`
 	Gender          string          `bson:"gender,omitempty" json:"gender"`
-	DeceasedBoolean bool            `bson:"deceasedBoolean,omitempty" json:"deceasedBoolean,omitempty"`
+	DeceasedBoolean bool            `bson:"deceasedboolean,omitempty" json:"deceasedboolean,omitempty"`
 	Conditions      []ConditionCode `bson:"conditions" json:"conditions"`
 }
 

@@ -139,7 +139,7 @@ func pgMaps() {
 		log.Fatal(err)
 	}
 
-	rows, err := db.Query(`SELECT cousub_stats.cs_name, cousub_stats.ct_fips, cousub_stats.cs_fips FROM synth_ma.cousub_stats`)
+	rows, err := db.Query(`SELECT synth_cousub_stats.cs_name, synth_cousub_stats.ct_fips, synth_cousub_stats.cs_fips FROM synth_ma.synth_cousub_stats`)
 	defer rows.Close()
 	for rows.Next() {
 		err := rows.Scan(&csName, &ctFips, &csFips)

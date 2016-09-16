@@ -119,4 +119,32 @@ func CalcSubCountyStats(mgoSession *mgo.Session, mDB string, pgConn string) {
 		log.Fatal(err)
 	}
 
+	res, err := db.Exec(`update synth_ma.synth_cousub_facts
+set rate =  f.pop / (s.pop * 1.0)
+from synth_ma.synth_cousub_facts f
+join synth_ma.synth_cousub_stats s
+	on f.cousubfp = s.cs_fips`)
+	if err != nil {
+		log.Fatal(err)
+	}
+	rowCnt, err := res.RowsAffected()
+	fmt.Println(rowCnt, err)
+
+	res, err = db.Exec(`insert into synth_ma.synth_county_facts (countyfp, diseasefp, pop, pop_male, pop_female, rate)
+select s.ct_fips, f.diseasefp, sum(f.pop) as pop
+	, sum(f.pop_male) as pop_male
+	, sum(f.pop_female) as pop_female
+	, sum(f.pop) / (c.pop * 1.0)
+from synth_ma.synth_cousub_facts f
+join synth_ma.synth_cousub_stats s
+	on f.cousubfp = s.cs_fips
+join synth_ma.synth_county_stats c
+	on s.ct_fips = c.ct_fips
+group by s.ct_fips, f.diseasefp, c.pop`)
+	if err != nil {
+		log.Fatal(err)
+	}
+	rowCnt, err = res.RowsAffected()
+	fmt.Println(rowCnt, err)
+
 }

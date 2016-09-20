@@ -15,18 +15,10 @@ import (
  * NOTE: This is a destructive operation.  Resources will be updated with new server-assigned ID and
  * its references will point to server locations of other resources.
  */
-func UploadResources(resources []interface{}, mServer string, mDB string) {
+func UploadResources(resources []interface{}, mgoSession *mgo.Session, mDB string, pgMapFips map[string]PgFips, pgDiseases map[DiseaseKey]int32) {
 
-	var (
-		mgoSession *mgo.Session
-		basestat   RawStats
-	)
-	var err error
-	mgoSession, err = mgo.Dial(mServer)
-	if err != nil {
-		panic(err)
-	}
-	defer mgoSession.Close()
+	var basestat RawStats
+	var condcode ConditionCode
 
 	forMango := make(map[string][]interface{})
 
@@ -40,15 +32,23 @@ func UploadResources(resources []interface{}, mServer string, mDB string) {
 		if resourceType == "Patient" {
 			p, ok := t.(*models.Patient)
 			if ok {
+				basestat.ID = p.Id
 				basestat.Gender = p.Gender
-				basestat.City = p.Address[0].City
+				basestat.DeceasedBoolean = p.DeceasedDateTime != nil || (p.DeceasedBoolean != nil && *p.DeceasedBoolean)
+				basestat.Location.City = p.Address[0].City
+				basestat.Location.ZipCode = p.Address[0].PostalCode
+				basestat.Location.CountyIDFips = pgMapFips[p.Address[0].City].CountyIDFips
+				basestat.Location.SubCountyIDFips = pgMapFips[p.Address[0].City].SubCountyIDFips
 			}
 		}
 
 		if resourceType == "Condition" {
 			p, ok := t.(*models.Condition)
 			if ok {
-				basestat.ConditionSNOMED = append(basestat.ConditionSNOMED, p.Code.Coding[0].Code)
+				condcode.Code = p.Code.Coding[0].Code
+				condcode.System = p.Code.Coding[0].System
+				condcode.DiseaseFP = pgDiseases[DiseaseKey{condcode.System, condcode.Code}]
+				basestat.Conditions = append(basestat.Conditions, condcode)
 			}
 		}
 	}
@@ -108,40 +108,11 @@ func getAllReferences(model interface{}) []*models.Reference {
 	return refs
 }
 
-func getId(model interface{}) string {
-	return reflect.ValueOf(model).Elem().FieldByName("Id").String()
-}
-
 func SetId(model interface{}, id string) {
 	v := reflect.ValueOf(model).Elem().FieldByName("Id")
 	if v.CanSet() {
 		v.SetString(id)
 	}
-}
-
-// In order for upload to work correctly, resources must go after the resources they depend on.
-func sortResourcesByDependency(resources []interface{}) []interface{} {
-	var result []interface{}
-	for _, resource := range resources {
-		var i int
-		for i = 0; i < len(result); i++ {
-			if references(result[i], resource) {
-				break
-			}
-		}
-		result = append(result[:i], append([]interface{}{resource}, result[i:]...)...)
-	}
-	return result
-}
-
-func references(from interface{}, to interface{}) bool {
-	toID := getId(to)
-	for _, ref := range getAllReferences(from) {
-		if strings.TrimPrefix(ref.Reference, "cid:") == toID {
-			return true
-		}
-	}
-	return false
 }
 
 func UpdateAllReferences(entries []*models.BundleEntryComponent, refMap map[string]models.Reference) {

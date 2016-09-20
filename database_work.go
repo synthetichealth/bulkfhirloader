@@ -2,7 +2,6 @@ package bulkfhirloader
 
 import (
 	"database/sql"
-	"fmt"
 	"log"
 
 	mgo "gopkg.in/mgo.v2"
@@ -225,6 +224,8 @@ func CalculateConditionFact(mgoSession *mgo.Session, mDB string, db *sql.DB) {
 		fmt.Println(err)
 		log.Fatal(err)
 	}
+
+}
 
 	c := mgoSession.DB(mDB).C("rawstat")
 	pipeline := []bson.M{

@@ -2,20 +2,17 @@ package bulkfhirloader
 
 import (
 	"database/sql"
-	"fmt"
 	"log"
 
 	mgo "gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 
 	"github.com/lib/pq"
-	_ "github.com/lib/pq"
 )
 
-/* Calculate the populations including a breakdown by disease.
-Only counting living patients */
+// CalculateFacts Calculate the populations including a breakdown by disease.
+// Only counting living patients
 func CalculateFacts(mgoSession *mgo.Session, mDB string, pgConn string) {
-	fmt.Println("Hello from CalculateFacts")
 	c := mgoSession.DB(mDB).C("rawstat")
 	pipeline := []bson.M{
 		bson.M{"$match": bson.M{"$and": []interface{}{
@@ -103,10 +100,6 @@ func CalculateFacts(mgoSession *mgo.Session, mDB string, pgConn string) {
 			log.Fatal(err)
 		}
 	}
-	_, err = stmt.Exec()
-	if err != nil {
-		log.Fatal(err)
-	}
 
 	err = stmt.Close()
 	if err != nil {
@@ -142,10 +135,9 @@ func CalculateFacts(mgoSession *mgo.Session, mDB string, pgConn string) {
 
 }
 
-/*Calculate the basic population statistics.
-Only counting living patients.*/
+// CalculateStatistics Calculate the basic population statistics.
+// Only counting living patients.
 func CalculateStatistics(mgoSession *mgo.Session, mDB string, pgConn string) {
-	fmt.Println("Hello from CalculateStatistics")
 	c := mgoSession.DB(mDB).C("rawstat")
 	pipeline := []bson.M{
 		bson.M{"$match": bson.M{"$or": []interface{}{
@@ -226,10 +218,6 @@ func CalculateStatistics(mgoSession *mgo.Session, mDB string, pgConn string) {
 		if err != nil {
 			log.Fatal(err)
 		}
-	}
-	_, err = stmt.Exec()
-	if err != nil {
-		log.Fatal(err)
 	}
 
 	err = stmt.Close()

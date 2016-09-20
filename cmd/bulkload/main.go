@@ -3,13 +3,13 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"sync"
 	"time"
 
@@ -38,13 +38,13 @@ type WeirdAl struct {
 func (wa *WeirdAl) visit(path string, f os.FileInfo, err error) error {
 	fmt.Printf("Visited: %s\n", path)
 
-	if !f.IsDir() {
+	if !f.IsDir() && strings.HasSuffix(path, ".json") {
 
 		// push path onto channel
 		wa.bundlechannel <- path
 		return nil
 	} else {
-		fmt.Println("just processing the directory path....")
+		fmt.Println("directory path or non-json file....")
 		return nil
 	}
 }
@@ -103,9 +103,9 @@ func worker(bundles <-chan string, wg *sync.WaitGroup) {
 			// Update all the references to the entries (to reflect newly assigned IDs)
 			bulkfhirloader.UpdateAllReferences(entries, refMap)
 
-			var rsc []interface{}
-			for _, entry := range entries {
-				rsc = append(rsc, entry.Resource)
+			rsc := make([]interface{}, len(entries))
+			for i := range entries {
+				rsc[i] = entries[i].Resource
 			}
 
 			bulkfhirloader.UploadResources(rsc, mgoSession, mgoDB, pgFipsMap, pgDiseases)
@@ -125,10 +125,8 @@ func pgMaps() {
 	)
 	pgFipsMap = make(map[string]bulkfhirloader.PgFips)
 
-	pgURL := flag.String("pgurl", pgConnectString, "The PG connection URL (e.g., postgres://pqgotest:password@localhost/pqgotest?sslmode=verify-full)")
-
 	// configure the GORM Postgres driver and database connection
-	db, err := sql.Open("postgres", *pgURL)
+	db, err := sql.Open("postgres", pgConnectString)
 
 	if err != nil {
 		log.Fatal(err)

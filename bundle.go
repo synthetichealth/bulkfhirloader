@@ -108,40 +108,11 @@ func getAllReferences(model interface{}) []*models.Reference {
 	return refs
 }
 
-func getId(model interface{}) string {
-	return reflect.ValueOf(model).Elem().FieldByName("Id").String()
-}
-
 func SetId(model interface{}, id string) {
 	v := reflect.ValueOf(model).Elem().FieldByName("Id")
 	if v.CanSet() {
 		v.SetString(id)
 	}
-}
-
-// In order for upload to work correctly, resources must go after the resources they depend on.
-func sortResourcesByDependency(resources []interface{}) []interface{} {
-	var result []interface{}
-	for _, resource := range resources {
-		var i int
-		for i = 0; i < len(result); i++ {
-			if references(result[i], resource) {
-				break
-			}
-		}
-		result = append(result[:i], append([]interface{}{resource}, result[i:]...)...)
-	}
-	return result
-}
-
-func references(from interface{}, to interface{}) bool {
-	toID := getId(to)
-	for _, ref := range getAllReferences(from) {
-		if strings.TrimPrefix(ref.Reference, "cid:") == toID {
-			return true
-		}
-	}
-	return false
 }
 
 func UpdateAllReferences(entries []*models.BundleEntryComponent, refMap map[string]models.Reference) {

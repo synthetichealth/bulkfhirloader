@@ -177,7 +177,6 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	// defer pgDB.Close()
 	// ping the db to ensure we connected successfully
 	if err := pgDB.Ping(); err != nil {
 		log.Fatal(err)

@@ -2,6 +2,7 @@ package bulkfhirloader
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 
 	mgo "gopkg.in/mgo.v2"

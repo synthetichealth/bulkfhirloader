@@ -47,3 +47,8 @@ type DiseaseKey struct {
 	CodeSystem  string `bson:"codesystem,omitempty"`
 	CodeSysCode string `bson:"codesyscode,omitempty"`
 }
+
+type DiseaseGroup struct {
+	ConditionID int `bson:"conditionid" json:"conditionid"`
+	DiseaseID   int `bson:"diseaseid" json:"diseaseid"`
+}

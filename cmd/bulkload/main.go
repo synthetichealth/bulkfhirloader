@@ -177,13 +177,15 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer pgDB.Close()
+	// defer pgDB.Close()
 	// ping the db to ensure we connected successfully
 	if err := pgDB.Ping(); err != nil {
 		log.Fatal(err)
 	}
 
 	pgMaps(pgDB)
+	//Won't need this connection again until done processing the bundles
+	pgDB.Close()
 	then := time.Now()
 
 	carrotTop := new(WeirdAl)
@@ -215,6 +217,14 @@ func main() {
 		panic(err)
 	}
 	defer mgoSession.Close()
+
+	pgDB, err = sql.Open("postgres", pgConnectString)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer pgDB.Close()
 
 	bulkfhirloader.CalculatePopulation(mgoSession, mgoDB, pgDB)
 	bulkfhirloader.CalculateDiseaseFact(mgoSession, mgoDB, pgDB)

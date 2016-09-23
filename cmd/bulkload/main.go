@@ -126,7 +126,13 @@ func pgMaps(db *sql.DB) {
 	)
 	pgFipsMap = make(map[string]bulkfhirloader.PgFips)
 
-	rows, err := db.Query(`SELECT cousub_stats.cs_name, cousub_stats.ct_fips, cousub_stats.cs_fips FROM synth_ma.cousub_stats`)
+	rows, err := db.Query(`
+SELECT case when right(cd.cs_name, 5) = ' Town' then substring(cd.cs_name, 1, length(cd.cs_name)-5)
+	else cs_name
+	end
+	, cd.ct_fips
+	, cd.cs_fips 
+FROM synth_ma.synth_cousub_dim cd`)
 	if err != nil {
 		log.Fatal(err)
 	}

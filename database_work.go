@@ -123,6 +123,7 @@ func CalculateDiseaseFact(mgoSession *mgo.Session, mDB string, db *sql.DB) {
 		}},
 		},
 		bson.M{"$unwind": "$uniquediseases"},
+		bson.M{"$match": bson.M{"uniquediseases": bson.M{"$gt": 0}}},
 		bson.M{
 			"$project": bson.M{
 				"_id":                       0,
@@ -209,6 +210,7 @@ func CalculateConditionFact(mgoSession *mgo.Session, mDB string, db *sql.DB) {
 		}},
 		},
 		bson.M{"$unwind": "$uniqueconditions"},
+		bson.M{"$match": bson.M{"uniqueconditions": bson.M{"$gt": 0}}},
 		bson.M{
 			"$project": bson.M{
 				"_id":                       0,

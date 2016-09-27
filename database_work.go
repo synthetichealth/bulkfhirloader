@@ -25,6 +25,30 @@ type commonResults struct {
 	PopFemale int32       `bson:"pop_female"`
 }
 
+// ClearFactTables clears the facts tables in postgres so they can be reloaded
+func ClearFactTables(db *sql.DB) {
+	_, err := db.Query(`truncate table synth_ma.synth_condition_facts;`)
+	if err != nil {
+		fmt.Println("Couldn't truncate synth_ma.synth_condition_facts")
+		fmt.Println(err)
+		log.Fatal(err)
+	}
+
+	_, err = db.Query(`truncate table synth_ma.synth_disease_facts;`)
+	if err != nil {
+		fmt.Println("Couldn't truncate synth_ma.synth_disease_facts")
+		fmt.Println(err)
+		log.Fatal(err)
+	}
+
+	_, err = db.Query(`truncate table synth_ma.synth_pop_facts;`)
+	if err != nil {
+		fmt.Println("Couldn't truncate synth_ma.synth_pop_facts")
+		fmt.Println(err)
+		log.Fatal(err)
+	}
+}
+
 // CalculatePopulation: Calculate the basic population facts.  Only counting living patients.
 func CalculatePopulation(mgoSession *mgo.Session, mDB string, db *sql.DB) {
 	if err := db.Ping(); err != nil {

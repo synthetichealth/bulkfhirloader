@@ -226,6 +226,7 @@ func main() {
 
 	defer pgDB.Close()
 
+	bulkfhirloader.ClearFactTables(pgDB)
 	bulkfhirloader.CalculatePopulation(mgoSession, mgoDB, pgDB)
 	bulkfhirloader.CalculateDiseaseFact(mgoSession, mgoDB, pgDB)
 	bulkfhirloader.CalculateConditionFact(mgoSession, mgoDB, pgDB)

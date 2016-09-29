@@ -35,20 +35,3 @@ type DiseaseGroup struct {
 	ConditionID int `bson:"conditionid" json:"conditionid"`
 	DiseaseID   int `bson:"diseaseid" json:"diseaseid"`
 }
-
-type PgFips struct {
-	CountyIDFips    string `bson:"countyid_fips,omitempty" json:"countyid_fips, omitempty"`
-	SubCountyIDFips string `bson:"subcountyid_fips,omitempty" json:"subcountyid_fips, omitempty"`
-	City            string `bson:"city,omitempty" json:"city,omitempty"`
-	ZipCode         string `bson:"zipcode,omitempty" json:"zipcode,omitempty"`
-}
-
-type DiseaseKey struct {
-	CodeSystem  string `bson:"codesystem,omitempty"`
-	CodeSysCode string `bson:"codesyscode,omitempty"`
-}
-
-type DiseaseGroup struct {
-	ConditionID int `bson:"conditionid" json:"conditionid"`
-	DiseaseID   int `bson:"diseaseid" json:"diseaseid"`
-}

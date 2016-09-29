@@ -35,3 +35,8 @@ type DiseaseGroup struct {
 	ConditionID int `bson:"conditionid" json:"conditionid"`
 	DiseaseID   int `bson:"diseaseid" json:"diseaseid"`
 }
+
+type PgFips struct {
+	CountyID    string
+	SubCountyID string
+}

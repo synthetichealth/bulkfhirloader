@@ -116,16 +116,11 @@ func worker(bundles <-chan string, wg *sync.WaitGroup) {
 				rsc[i] = entries[i].Resource
 			}
 
-<<<<<<< HEAD
 			bulkfhirloader.UploadResources(rsc, mgoSession, mgoDB, pgFipsMap, pgDiseases)
-=======
-			bulkfhirloader.UploadResources(rsc, mgoSession, mgoDB, pgFipsMap)
->>>>>>> 6ef3b8b... Add County/SubCounty info to rawstats
 		} // close the select
 	} // close the for
 }
 
-<<<<<<< HEAD
 func pgMaps(db *sql.DB) {
 	var (
 		csName         string
@@ -149,39 +144,12 @@ FROM synth_ma.synth_cousub_dim cd`)
 	if err != nil {
 		log.Fatal(err)
 	}
-=======
-func pgMaps() {
-	var (
-		csName string
-		ctFips string
-		csFips string
-		blah   bulkfhirloader.PgFips
-	)
-	pgFipsMap = make(map[string]bulkfhirloader.PgFips)
-
-	pgURL := flag.String("pgurl", "postgres://fhir:fhir@syntheticmass-dev.mitre.org", "The PG connection URL (e.g., postgres://pqgotest:password@localhost/pqgotest?sslmode=verify-full)")
-
-	// configure the GORM Postgres driver and database connection
-	db, err := sql.Open("postgres", *pgURL)
-
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer db.Close()
-	// ping the db to ensure we connected successfully
-	if err := db.Ping(); err != nil {
-		log.Fatal(err)
-	}
-
-	rows, err := db.Query(`SELECT cousub_stats.cs_name, cousub_stats.ct_fips, cousub_stats.cs_fips FROM synth_ma.cousub_stats`)
->>>>>>> 6ef3b8b... Add County/SubCounty info to rawstats
 	defer rows.Close()
 	for rows.Next() {
 		err := rows.Scan(&csName, &ctFips, &csFips)
 		if err != nil {
 			log.Fatal(err)
 		}
-<<<<<<< HEAD
 		fipsRecord.CountyIDFips = ctFips
 		fipsRecord.SubCountyIDFips = csFips
 		pgFipsMap[csName] = fipsRecord
@@ -205,23 +173,14 @@ func pgMaps() {
 		dg.ConditionID = condID
 		dg.DiseaseID = condDiseaseID
 		pgDiseases[bulkfhirloader.DiseaseKey{condCodeSystem, condCode}] = dg
-=======
-		blah.CountyID = ctFips
-		blah.SubCountyID = csFips
-		pgFipsMap[csName] = blah
->>>>>>> 6ef3b8b... Add County/SubCounty info to rawstats
 	}
 
 	return
 }
 
 func main() {
-<<<<<<< HEAD
 	// configure the GORM Postgres driver and database connection
 	pgDB, err := sql.Open("postgres", pgConnectString)
-=======
-	pgMaps()
->>>>>>> 6ef3b8b... Add County/SubCounty info to rawstats
 
 	if err != nil {
 		log.Fatal(err)

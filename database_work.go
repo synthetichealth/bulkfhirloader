@@ -226,8 +226,6 @@ func CalculateConditionFact(mgoSession *mgo.Session, mDB string, db *sql.DB) {
 		log.Fatal(err)
 	}
 
-}
-
 	c := mgoSession.DB(mDB).C("rawstat")
 	pipeline := []bson.M{
 		bson.M{"$match": bson.M{"$or": []interface{}{

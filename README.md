@@ -48,7 +48,7 @@ $ git pull
 By default, `go build` gives the binary the name of the top level folder the project is built from, in this case "bulkfhirloader". This is a bit long, so specify a custom name for the binary:
 
 ```
-# cd $GOPATH/src/github.com/synthetichealth/bulkfhirloader
+$ cd $GOPATH/src/github.com/synthetichealth/bulkfhirloader
 $ go build -o bulkload github.com/synthetichealth/bulkfhirloader 
 ```
 This creates the `bulkload` binary in the project's top-level directory.
@@ -58,6 +58,11 @@ This creates the `bulkload` binary in the project's top-level directory.
 ### Command Line Arguments
 
 You can get a list of command line arguments using the `-h` or `--help` flag:
+
+```
+$ ./bulkload --help
+```
+Outputs:
 
 ```
 Usage of ./bulkload:                                                                                                                              
@@ -121,18 +126,18 @@ Depending on the number of bundles you plan to upload this process may take seve
 ```
 nohup ./bulkload <your_various_cli_args> &
 ```
-
+This will keep the process running if you close your terminal session.
 
 ## Adding a New Disease Statistic
 
-You will need to add a new row to the `synth_ma.synth_condition_dim` and `synth_ma.synth_disease_dim` tables representing your statistic. These will get picked up automatically by the bulkloader and tracked for any patients that have the disease.
+You will need to add new rows representing your statistic to the `synth_ma.synth_condition_dim` and `synth_ma.synth_disease_dim` tables. These will get picked up automatically by the bulkloader and tracked for any patients that have the disease.
 
 **Don't forget to update the schema in the [pgstats](https://github.com/synthetichealth/pgstats) repository!**
 
 
 ### An Example
 
-For example, say we wanted to track the deadly disease "examplitis", which is identified by "examplation" and "excessive exampling":
+For example, say we wanted to track the deadly disease "examplitis", which is identified by the conditions "examplation" and "excessive exampling":
 
 1. Add examplitis to the `synth_ma.synth_disease_dim` table:
 

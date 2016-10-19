@@ -1,24 +1,84 @@
-package bulkfhirloader
+package bulkloader
 
 import (
 	"errors"
 	"fmt"
+	"math"
 	"reflect"
 	"strings"
-
-	mgo "gopkg.in/mgo.v2"
+	"time"
 
 	"github.com/intervention-engine/fhir/models"
+	"gopkg.in/mgo.v2"
 )
 
-/*
- * NOTE: This is a destructive operation.  Resources will be updated with new server-assigned ID and
- * its references will point to server locations of other resources.
- */
-func UploadResources(resources []interface{}, mgoSession *mgo.Session, mDB string, pgMapFips map[string]PgFips, pgDiseases map[DiseaseKey]int32) {
+// CousubMap maps a county subdivision ID (called "csfips" in the synth_ma.synth_cousub_dim
+// table) to a bulkloader.Cousub struct.
+type CousubMap map[string]Cousub
+
+// DiseaseMap maps a bulkloader.DiseaseKey (a system/coding pair) to a disease
+// in the synth_ma.synth_disease_dim table.
+type DiseaseMap map[DiseaseKey]Disease
+
+func removeDuplicateDiseases(elements []ConditionCode) []int {
+	// Use map to record duplicates as we find them
+	encountered := map[int]bool{}
+
+	for v := range elements {
+		encountered[elements[v].DiseaseID] = true
+	}
+
+	// iterate through the map's keys
+	result := make([]int, len(encountered))
+	i := 0
+	for k := range encountered {
+		result[i] = k
+		i++
+	}
+
+	return result
+}
+
+func removeDuplicateConditions(elements []ConditionCode) []int {
+	// Use map to record duplicates as we find them
+	encountered := map[int]bool{}
+
+	for v := range elements {
+		encountered[elements[v].ConditionID] = true
+	}
+
+	// iterate through the map's keys
+	result := make([]int, len(encountered))
+	i := 0
+	for k := range encountered {
+		result[i] = k
+		i++
+	}
+
+	return result
+}
+
+func getAge(birthDate time.Time) int {
+	now := time.Now()
+	delta := now.Sub(birthDate)
+
+	// Sub() returns a Duration. The largest field in Duration is 'Hour', so need to divide
+	// to get the total number of years, then floor it to get a whole number.
+	return int(math.Floor(delta.Hours() / (24 * 365)))
+}
+
+// UploadResources uploads all resources in FHIR bundle to the Mongo database, collecting the
+// relevant statistics before uploading. NOTE: This is a destructive operation.  Resources will
+// be updated with new server-assigned ID and all references to this ID will point to other
+// resources on the server.
+func UploadResources(resources []interface{}, mgoSession *mgo.Session, dbName string, cousubs CousubMap, diseases DiseaseMap) {
 
 	var basestat RawStats
 	var condcode ConditionCode
+
+	// create a copy of the master Mongo session for this upload
+	session := mgoSession.Copy()
+	defer session.Close()
 
 	forMango := make(map[string][]interface{})
 
@@ -34,11 +94,13 @@ func UploadResources(resources []interface{}, mgoSession *mgo.Session, mDB strin
 			if ok {
 				basestat.ID = p.Id
 				basestat.Gender = p.Gender
+				basestat.Age = getAge(p.BirthDate.Time)
+				basestat.AgeRange = 1
 				basestat.DeceasedBoolean = p.DeceasedDateTime != nil || (p.DeceasedBoolean != nil && *p.DeceasedBoolean)
 				basestat.Location.City = p.Address[0].City
 				basestat.Location.ZipCode = p.Address[0].PostalCode
-				basestat.Location.CountyIDFips = pgMapFips[p.Address[0].City].CountyIDFips
-				basestat.Location.SubCountyIDFips = pgMapFips[p.Address[0].City].SubCountyIDFips
+				basestat.Location.CountyIDFips = cousubs[p.Address[0].City].CountyIDFips
+				basestat.Location.SubCountyIDFips = cousubs[p.Address[0].City].SubCountyIDFips
 			}
 		}
 
@@ -47,14 +109,15 @@ func UploadResources(resources []interface{}, mgoSession *mgo.Session, mDB strin
 			if ok {
 				condcode.Code = p.Code.Coding[0].Code
 				condcode.System = p.Code.Coding[0].System
-				condcode.DiseaseFP = pgDiseases[DiseaseKey{condcode.System, condcode.Code}]
+				condcode.DiseaseID = diseases[DiseaseKey{condcode.System, condcode.Code}].DiseaseID
+				condcode.ConditionID = diseases[DiseaseKey{condcode.System, condcode.Code}].ConditionID
 				basestat.Conditions = append(basestat.Conditions, condcode)
 			}
 		}
 	}
 
 	for key, value := range forMango {
-		c := mgoSession.DB(mDB).C(key)
+		c := session.DB(dbName).C(key)
 		x := c.Bulk()
 		x.Unordered()
 		x.Insert(value...)
@@ -64,9 +127,10 @@ func UploadResources(resources []interface{}, mgoSession *mgo.Session, mDB strin
 		}
 	}
 
-	c := mgoSession.DB(mDB).C("rawstat")
+	c := session.DB(dbName).C("rawstat")
+	basestat.UniqueConditions = removeDuplicateConditions(basestat.Conditions)
+	basestat.UniqueDiseases = removeDuplicateDiseases(basestat.Conditions)
 	c.Insert(basestat)
-
 }
 
 func updateReferences(resource interface{}, refMap map[string]string) error {
@@ -88,12 +152,11 @@ func updateReference(ref *models.Reference, refMap map[string]string) error {
 			return errors.New(fmt.Sprint("Failed to find updated reference for ", ref))
 		}
 	}
-
 	return nil
 }
 
 func getAllReferences(model interface{}) []*models.Reference {
-	refs := make([]*models.Reference, 0)
+	var refs []*models.Reference
 	s := reflect.ValueOf(model).Elem()
 	for i := 0; i < s.NumField(); i++ {
 		f := s.Field(i)
@@ -108,7 +171,8 @@ func getAllReferences(model interface{}) []*models.Reference {
 	return refs
 }
 
-func SetId(model interface{}, id string) {
+// SetID sets the BSON ID for the provided resource
+func SetID(model interface{}, id string) {
 	v := reflect.ValueOf(model).Elem().FieldByName("Id")
 	if v.CanSet() {
 		v.SetString(id)

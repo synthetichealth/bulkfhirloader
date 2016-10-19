@@ -33,6 +33,10 @@ type WorkerChannel struct {
 // bundleChannel that feeds the workers.
 func (wc *WorkerChannel) visit(path string, f os.FileInfo, err error) error {
 
+	if err != nil {
+		return err
+	}
+
 	if *debug {
 		log.Printf("Visited: %s\n", path)
 	}

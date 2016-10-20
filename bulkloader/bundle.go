@@ -3,7 +3,6 @@ package bulkloader
 import (
 	"errors"
 	"fmt"
-	"math"
 	"reflect"
 	"strings"
 	"time"
@@ -20,51 +19,44 @@ type CousubMap map[string]Cousub
 // in the synth_ma.synth_disease_dim table.
 type DiseaseMap map[DiseaseKey]Disease
 
-func removeDuplicateDiseases(elements []ConditionCode) []int {
-	// Use map to record duplicates as we find them
-	encountered := map[int]bool{}
+// removeDuplicats removes any duplicate Condition and Disease IDs and
+// returns two slices containing unique conditionIDs and diseaseIDs, respectively.
+func removeDuplicates(conditions []ConditionCode) ([]int, []int) {
+	// Use maps to record duplicates as we find them
+	c := map[int]bool{}
+	d := map[int]bool{}
 
-	for v := range elements {
-		encountered[elements[v].DiseaseID] = true
+	for _, el := range conditions {
+		c[el.ConditionID] = true
+		d[el.DiseaseID] = true
 	}
 
-	// iterate through the map's keys
-	result := make([]int, len(encountered))
+	// iterate through the keys
+	uniqueC := make([]int, len(c))
+	uniqueD := make([]int, len(d))
+
 	i := 0
-	for k := range encountered {
-		result[i] = k
+	for k := range c {
+		uniqueC[i] = k
 		i++
 	}
 
-	return result
-}
-
-func removeDuplicateConditions(elements []ConditionCode) []int {
-	// Use map to record duplicates as we find them
-	encountered := map[int]bool{}
-
-	for v := range elements {
-		encountered[elements[v].ConditionID] = true
-	}
-
-	// iterate through the map's keys
-	result := make([]int, len(encountered))
-	i := 0
-	for k := range encountered {
-		result[i] = k
+	i = 0
+	for k := range d {
+		uniqueD[i] = k
 		i++
 	}
 
-	return result
+	return uniqueC, uniqueD
 }
 
-func getAge(birthDate time.Time) int {
-	now := time.Now()
-	delta := now.Sub(birthDate)
-
-	// Sub() returns a Duration. The largest field in Duration is 'Hour', so need to divide
-	// to get the total number of years, then floor it to get a whole number.
-	return int(math.Floor(delta.Hours() / (24 * 365)))
+// getAge returns the person's current age given his/her Birthdate bd
+func getAge(bd time.Time) int {
+	i := 1
+	for time.Now().AddDate(i*-1, 0, 0).After(bd) {
+		i++
+	}
+	return i - 1
 }
 
 // UploadResources uploads all resources in FHIR bundle to the Mongo database, collecting the
@@ -128,8 +120,7 @@ func UploadResources(resources []interface{}, mgoSession *mgo.Session, dbName st
 	}
 
 	c := session.DB(dbName).C("rawstat")
-	basestat.UniqueConditions = removeDuplicateConditions(basestat.Conditions)
-	basestat.UniqueDiseases = removeDuplicateDiseases(basestat.Conditions)
+	basestat.UniqueConditions, basestat.UniqueDiseases = removeDuplicates(basestat.Conditions)
 	c.Insert(basestat)
 }
 

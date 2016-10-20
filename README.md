@@ -39,7 +39,7 @@ The bulkloader depends on the [STU3_aug2016 branch](https://github.com/intervent
 
 ```
 $ cd $GOPATH/src/github.com/intervention-engine/fhir
-$ git checkout stu3_aug2016
+$ git checkout -b stu3_aug2016 origin/stu3_aug2016
 $ git pull
 ```
 
@@ -65,24 +65,24 @@ $ ./bulkload --help
 Outputs:
 
 ```
-Usage of ./bulkload:                                                                                                                              
-  -dbname string                                                                                                                                  
-        MongoDB database name, e.g. 'fhir' (default "fhir")                                                                                       
-  -debug                                                                                                                                          
-        Display additional debug output                                                                                                           
-  -mongo string                                                                                                                                   
-        MongoDB server url, format: host:27017 (default "localhost:27017")                                                                        
-  -p string                                                                                                                                       
-        Path to fhir bundles to upload                                                                                                            
-  -pgurl string                                                                                                                                   
-        Postgres connection string, format: postgresql://username:password@host/dbname?sslmode=disable                                            
-  -reset                                                                                                                                          
-        Reset the FHIR collections in Mongo and reset the synth_ma statistics                                                                     
-  -workers int                                                                                                                                    
-        Number of concurrent workers to use (default 8)  
+Usage of ./bulkload:                                                                                                                        
+  -dbname string                                                                                                                            
+        MongoDB database name, e.g. 'fhir' (default "fhir")                                                                                 
+  -debug                                                                                                                                    
+        Display additional debug output                                                                                                     
+  -mongo string                                                                                                                             
+        MongoDB server url, format: host:27017 (default "localhost:27017")                                                                  
+  -path string                                                                                                                              
+        Path to fhir bundles to upload                                                                                                      
+  -pgurl string                                                                                                                             
+        Postgres connection string, format: postgresql://username:password@host/dbname?sslmode=disable                                      
+  -reset                                                                                                                                    
+        Reset the FHIR collections in Mongo and reset the synth_ma statistics                                                               
+  -workers int                                                                                                                              
+        Number of concurrent workers to use (default 8) 
 ```
 
-Minimally you will need the `-p` and `-pgurl` flags to run the bulkloader.
+Minimally you will need the `-path` and `-pgurl` flags to run the bulkloader.
 
 The `-reset` and `-debug` flags are optional boolean flags that enable a database reset and debugging output, respectively.
 
@@ -97,7 +97,7 @@ As the bulkloader processes each FHIR bundle it will create a summary record in 
 Note: You'll probably need to disable SSL mode
 
 ```
-$ ./bulkload -p /path/to/fhir/bundles -pgurl postgresql://username:password@localhost/fhir?sslmode=disable
+$ ./bulkload -path /path/to/fhir/bundles -pgurl postgresql://username:password@localhost/fhir?sslmode=disable
 ```
 	
 By default this uses a mongo database called `fhir` running on `localhost` and **does not** reset the Mongo database or any of the Postgres statistics.
@@ -105,7 +105,7 @@ By default this uses a mongo database called `fhir` running on `localhost` and *
 ### Run the Bulkloader Against a Remote Server
 
 ```
-$ ./bulkload -p /path/to/fhir/bundles -mongo syntheticmass-dev.mitre.org:27017 -dbname fhir -pgurl postgresql://username:password@syntheticmass-dev.mitre.org/fhir
+$ ./bulkload -path /path/to/fhir/bundles -mongo syntheticmass-dev.mitre.org:27017 -dbname fhir -pgurl postgresql://username:password@syntheticmass-dev.mitre.org/fhir
 ```
 
 Again, this **does not** reset the Mongo database or any of the Postgres statistics. The Mongo and Postgres database servers both have to be accessible over the open web.

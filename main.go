@@ -24,39 +24,9 @@ import (
 
 var debug *bool
 
-// WorkerChannel coordinates the processing of FHIR bundles between several workers.
-type WorkerChannel struct {
-	bundleChannel chan (string)
-}
-
-// visit visits all the FHIR bundles in a specified path, adding each bundle to the
-// bundleChannel that feeds the workers.
-func (wc *WorkerChannel) visit(path string, f os.FileInfo, err error) error {
-
-	if err != nil {
-		return err
-	}
-
-	if *debug {
-		log.Printf("Visited: %s\n", path)
-	}
-
-	if !f.IsDir() && strings.HasSuffix(path, ".json") {
-
-		// push bundle onto channel
-		wc.bundleChannel <- path
-		return nil
-	}
-
-	if *debug {
-		log.Println("Processed directory path or non-json file....")
-	}
-	return nil
-}
-
 func main() {
 	// required command line flags
-	fhirBundlePath := flag.String("p", "", "Path to fhir bundles to upload")
+	fhirBundlePath := flag.String("path", "", "Path to fhir bundles to upload")
 	mongoServer := flag.String("mongo", "localhost:27017", "MongoDB server url, format: host:27017")
 	mongoDBName := flag.String("dbname", "fhir", "MongoDB database name, e.g. 'fhir'")
 	pgurl := flag.String("pgurl", "", "Postgres connection string, format: postgresql://username:password@host/dbname?sslmode=disable")
@@ -70,12 +40,12 @@ func main() {
 
 	if *fhirBundlePath == "" {
 		fmt.Println("You must specify a path to the fhir bundles to upload")
-		return
+		os.Exit(1)
 	}
 
 	if *pgurl == "" {
 		fmt.Println("You must specify a Postgres connection string")
-		return
+		os.Exit(1)
 	}
 
 	var err error
@@ -110,17 +80,13 @@ func main() {
 
 	cousubs, err := getCousubs(pgDB)
 	if err != nil {
-		if *debug {
-			log.Println(err)
-		}
+		logDebug(err)
 		log.Fatal("Failed to get subdivision list from Postgres")
 	}
 
 	diseases, err := getDiseases(pgDB)
 	if err != nil {
-		if *debug {
-			log.Println(err)
-		}
+		logDebug(err)
 		log.Fatal("Failed to get disease list from Postgres")
 	}
 
@@ -233,6 +199,32 @@ func getDiseases(db *sql.DB) (*bulkloader.DiseaseMap, error) {
 	return &diseases, nil
 }
 
+// WorkerChannel coordinates the processing of FHIR bundles between several workers.
+type WorkerChannel struct {
+	bundleChannel chan (string)
+}
+
+// visit visits all the FHIR bundles in a specified path, adding each bundle to the
+// bundleChannel that feeds the workers.
+func (wc *WorkerChannel) visit(path string, f os.FileInfo, err error) error {
+
+	if err != nil {
+		return err
+	}
+
+	logDebug("Visited: %s\n", path)
+
+	if !f.IsDir() && strings.HasSuffix(path, ".json") {
+
+		// push bundle onto channel
+		wc.bundleChannel <- path
+		return nil
+	}
+
+	logDebug("Processed directory path or non-json file....")
+	return nil
+}
+
 // worker uses a WorkerChannel to process all of the resources in a single FHIR bundle, specified by the path to that bundle's JSON file.
 func worker(wg *sync.WaitGroup, bundles <-chan string, mongoSession *mgo.Session, dbName string, cousubs *bulkloader.CousubMap, diseases *bulkloader.DiseaseMap, counter *uint64) {
 	defer wg.Done()
@@ -245,15 +237,15 @@ func worker(wg *sync.WaitGroup, bundles <-chan string, mongoSession *mgo.Session
 			}
 
 			jsonFile, err := os.Open(path)
-			if err != nil && *debug {
-				log.Println("Error opening JSON file:\n", err)
+			if err != nil {
+				logDebug("Error opening JSON file:\n", err)
 				continue
 			}
 
 			jsonData, err := ioutil.ReadAll(jsonFile)
 			jsonFile.Close()
-			if err != nil && *debug {
-				log.Println("Error reading JSON data:\n", err)
+			if err != nil {
+				logDebug("Error reading JSON data:\n", err)
 				continue
 			}
 
@@ -296,4 +288,10 @@ func worker(wg *sync.WaitGroup, bundles <-chan string, mongoSession *mgo.Session
 
 func getSecondsSince(start time.Time) float64 {
 	return time.Now().Sub(start).Seconds()
+}
+
+func logDebug(v ...interface{}) {
+	if *debug {
+		log.Println(v...)
+	}
 }

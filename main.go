@@ -69,9 +69,11 @@ func main() {
 	}
 	defer pgDB.Close()
 
-	// optionally reset the data in postgres and mongo (if starting a clean upload)
+	// GQ: always reset postgres fact tables. reset flag will only clear mongo now
+	bulkloader.ClearFactTables(pgDB)
+
+	// optionally reset the data in mongo (if starting a clean upload)
 	if *reset {
-		bulkloader.ClearFactTables(pgDB)
 		bulkloader.ClearMongoCollections(mongoSession, *mongoDBName)
 	}
 

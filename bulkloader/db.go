@@ -150,6 +150,11 @@ func CalculatePopulationFacts(mongoSession *mgo.Session, dbName string, db *sql.
 		}
 	}
 
+	_,err = stmt.Exec()
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	err = stmt.Close()
 	if err != nil {
 		log.Fatal(err)
@@ -239,6 +244,10 @@ func CalculateDiseaseFacts(mongoSession *mgo.Session, dbName string, db *sql.DB)
 		if err != nil {
 			log.Fatal(err)
 		}
+	}
+	_,err = stmt.Exec()
+	if err != nil {
+		log.Fatal(err)
 	}
 
 	err = stmt.Close()
@@ -330,6 +339,11 @@ func CalculateConditionFacts(mongoSession *mgo.Session, dbName string, db *sql.D
 		if err != nil {
 			log.Fatal(err)
 		}
+	}
+
+	_,err = stmt.Exec()
+	if err != nil {
+		log.Fatal(err)
 	}
 
 	err = stmt.Close()

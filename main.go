@@ -92,6 +92,12 @@ func main() {
 		log.Fatal("Failed to get disease list from Postgres")
 	}
 
+	ageRanges, err := getAgeRange(pgDB)
+	if err != nil {
+		logDebug(err)
+		log.Fatal("Failed to get age ranges from Postgres")
+	}
+
 	// create a new WorkerChannel to coordinate workers
 	log.Printf("Reading FHIR bundles in %s\n", *fhirBundlePath)
 
@@ -105,7 +111,7 @@ func main() {
 	// spawn workers
 	for i := 0; i < *numWorkers; i++ {
 		wg.Add(1)
-		go worker(&wg, workerChannel.bundleChannel, mongoSession, *mongoDBName, cousubs, diseases, &counter)
+		go worker(&wg, workerChannel.bundleChannel, mongoSession, *mongoDBName, cousubs, diseases, ageRanges, &counter)
 	}
 
 	err = filepath.Walk(*fhirBundlePath, workerChannel.visit)
@@ -197,8 +203,40 @@ func getDiseases(db *sql.DB) (*bulkloader.DiseaseMap, error) {
 			CodeSysCode: code,
 		}
 		diseases[key] = disease
+
 	}
 	return &diseases, nil
+}
+
+// getAgeRange queries the Postgres database for the latest list of age ranges in the
+// synth_ma.synth_age_range_dim table.
+func getAgeRange(db *sql.DB) (*map[int]int, error) {
+
+	rows, err := db.Query(`
+		SELECT age_range_id, min_age, max_age 
+		FROM synth_ma.synth_age_range_dim`)
+
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	rangeMap := make(map[int]int)
+
+	for rows.Next() {
+		var rangeId, rangeMin, rangeMax int
+
+		err := rows.Scan(&rangeId, &rangeMin, &rangeMax)
+		if err != nil {
+			return nil, err
+		}
+
+		for i := rangeMin; i <= rangeMax; i++ {
+			rangeMap[i] = rangeId
+		}
+	}
+
+	return &rangeMap, nil
 }
 
 // WorkerChannel coordinates the processing of FHIR bundles between several workers.
@@ -228,7 +266,7 @@ func (wc *WorkerChannel) visit(path string, f os.FileInfo, err error) error {
 }
 
 // worker uses a WorkerChannel to process all of the resources in a single FHIR bundle, specified by the path to that bundle's JSON file.
-func worker(wg *sync.WaitGroup, bundles <-chan string, mongoSession *mgo.Session, dbName string, cousubs *bulkloader.CousubMap, diseases *bulkloader.DiseaseMap, counter *uint64) {
+func worker(wg *sync.WaitGroup, bundles <-chan string, mongoSession *mgo.Session, dbName string, cousubs *bulkloader.CousubMap, diseases *bulkloader.DiseaseMap, ageRanges *map[int]int, counter *uint64) {
 	defer wg.Done()
 
 	for {
@@ -283,7 +321,7 @@ func worker(wg *sync.WaitGroup, bundles <-chan string, mongoSession *mgo.Session
 			}
 
 			atomic.AddUint64(counter, 1)
-			bulkloader.UploadResources(resources, mongoSession, dbName, *cousubs, *diseases)
+			bulkloader.UploadResources(resources, mongoSession, dbName, *cousubs, *diseases, *ageRanges)
 		} // close the select
 	} // close the for
 }

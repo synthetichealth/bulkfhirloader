@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"strings"
 	"time"
-	
+
 	"github.com/intervention-engine/fhir/models"
 	"gopkg.in/mgo.v2"
 )
@@ -118,10 +118,10 @@ func UploadResources(resources []interface{}, mgoSession *mgo.Session, dbName st
 			panic(err)
 		}
 	}
-	
+
 	c := session.DB(dbName).C("rawstat")
 	basestat.UniqueConditions, basestat.UniqueDiseases = removeDuplicates(basestat.Conditions)
-	
+
 	c.Insert(basestat)
 }
 

@@ -63,7 +63,7 @@ func getAge(bd time.Time) int {
 // relevant statistics before uploading. NOTE: This is a destructive operation.  Resources will
 // be updated with new server-assigned ID and all references to this ID will point to other
 // resources on the server.
-func UploadResources(resources []interface{}, mgoSession *mgo.Session, dbName string, cousubs CousubMap, diseases DiseaseMap, ageRanges map[int]int) {
+func UploadResources(resources []interface{}, mgoSession *mgo.Session, dbName string, cousubs CousubMap, diseases DiseaseMap) {
 
 	var basestat RawStats
 	var condcode ConditionCode
@@ -87,7 +87,7 @@ func UploadResources(resources []interface{}, mgoSession *mgo.Session, dbName st
 				basestat.ID = p.Id
 				basestat.Gender = p.Gender
 				basestat.Age = getAge(p.BirthDate.Time)
-				basestat.AgeRange = ageRanges[basestat.Age]
+				basestat.AgeRange = 1
 				basestat.DeceasedBoolean = p.DeceasedDateTime != nil || (p.DeceasedBoolean != nil && *p.DeceasedBoolean)
 				basestat.Location.City = p.Address[0].City
 				basestat.Location.ZipCode = p.Address[0].PostalCode

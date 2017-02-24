@@ -16,7 +16,7 @@ var collectionNames = []string{
 	"diagnosticreports",
 	"encounters",
 	"immunizations",
-	"medicationorders",
+	"medicationrequests",
 	"observations",
 	"patients",
 	"procedures",

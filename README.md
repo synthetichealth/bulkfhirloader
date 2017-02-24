@@ -35,11 +35,11 @@ $ go get
 ```
 
 ### GoFHIR Server Dependency
-The bulkloader depends on the [STU3_aug2016 branch](https://github.com/intervention-engine/fhir/tree/stu3_aug2016) of the intervention-engine/fhir GoFHIR server. By default `go get` clones the `master` branch of this repository, which is **not** the one we need, so let's fix it:
+The bulkloader depends on the [stu3_jan2017 branch](https://github.com/intervention-engine/fhir/tree/stu3_jan2017) of the intervention-engine/fhir GoFHIR server. By default `go get` clones the `master` branch of this repository, which is **not** the one we need, so let's fix it:
 
 ```
 $ cd $GOPATH/src/github.com/intervention-engine/fhir
-$ git checkout -b stu3_aug2016 origin/stu3_aug2016
+$ git checkout stu3_jan2017
 $ git pull
 ```
 
